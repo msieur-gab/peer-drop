@@ -236,8 +236,9 @@
   });
 
   bridge.addEventListener('disconnected', (e) => {
-    log(`Disconnected: ${e.detail?.reason || 'closed'}`, 'warn');
-    status.textContent = 'Disconnected';
+    const reason = e.detail?.reason;
+    log(`Disconnected: ${reason || 'closed'}`, 'warn');
+    status.textContent = reason || 'Disconnected';
     status.className = 'status';
     setTimeout(() => {
       welcome.classList.remove('visible');
@@ -255,7 +256,7 @@
 
   document.getElementById('btn-disconnect').addEventListener('click', () => {
     log('Disconnect button pressed');
-    bridge.disconnect();
+    bridge.disconnect('Host ended session');
     welcome.classList.remove('visible');
     qrPhase.classList.remove('hidden');
     status.textContent = 'Disconnected';

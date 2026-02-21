@@ -373,8 +373,9 @@
   });
 
   bridge.addEventListener('disconnected', (e) => {
-    log(`Disconnected: ${e.detail?.reason || 'closed'}`, 'warn');
-    retryTitle.textContent = 'Disconnected';
+    const reason = e.detail?.reason;
+    log(`Disconnected: ${reason || 'closed'}`, 'warn');
+    retryTitle.textContent = reason || 'Disconnected';
     retryMessage.textContent = 'The connection was closed.';
     btnRetry.disabled = false;
     show('screen-retry');
@@ -476,7 +477,7 @@
 
   document.getElementById('btn-disconnect').addEventListener('click', () => {
     log('Disconnect button pressed');
-    bridge.disconnect();
+    bridge.disconnect('Client disconnected');
     show('screen-welcome');
   });
 

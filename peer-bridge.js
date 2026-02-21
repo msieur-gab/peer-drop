@@ -35,6 +35,7 @@ export class PeerBridge extends EventTarget {
   #debug = false;
   #wakeLock = null;
   #connectionTimer = null;
+  #pendingReason = null;
 
   constructor(options = {}) {
     super();
@@ -126,18 +127,30 @@ export class PeerBridge extends EventTarget {
   }
 
   // — Disconnect: close connection, keep session for retry —
+  // Optional reason string is sent to the remote peer (best-effort).
 
-  disconnect() {
+  disconnect(reason) {
     this.#clearConnectionTimeout();
     this.#stopHeartbeat();
     this.#releaseWakeLock();
-    if (this.#connection) {
-      this.#connection.close();
-      this.#connection = null;
-    }
-    if (this.#peer) {
-      this.#peer.destroy();
-      this.#peer = null;
+
+    // Snapshot refs, then null fields immediately so retry() is safe
+    const conn = this.#connection;
+    const peer = this.#peer;
+    this.#connection = null;
+    this.#peer = null;
+    this.#pendingReason = null;
+
+    if (reason && conn?.open) {
+      // Send bye message, then close after grace period for flush
+      conn.send({ __peerDrop: 'bye', reason });
+      setTimeout(() => {
+        conn.close();
+        peer?.destroy();
+      }, 100);
+    } else {
+      if (conn) conn.close();
+      if (peer) peer.destroy();
     }
   }
 
@@ -184,13 +197,17 @@ export class PeerBridge extends EventTarget {
     });
 
     conn.on('data', (data) => {
-      // Heartbeat protocol — invisible to consumer
+      // Internal protocol — invisible to consumer
       if (data?.__peerDrop === 'ping') {
         this.#connection?.send({ __peerDrop: 'pong' });
         return;
       }
       if (data?.__peerDrop === 'pong') {
         this.#lastPong = Date.now();
+        return;
+      }
+      if (data?.__peerDrop === 'bye') {
+        this.#pendingReason = data.reason || undefined;
         return;
       }
       this.#emit('data', { data });
@@ -200,7 +217,9 @@ export class PeerBridge extends EventTarget {
       this.#log('connection: CLOSED');
       this.#stopHeartbeat();
       this.#releaseWakeLock();
-      this.#emit('disconnected', { role: this.#role });
+      const reason = this.#pendingReason || undefined;
+      this.#pendingReason = null;
+      this.#emit('disconnected', { role: this.#role, reason });
     });
 
     conn.on('error', (err) => {
