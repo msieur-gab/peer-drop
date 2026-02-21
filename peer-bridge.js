@@ -165,6 +165,7 @@ export class PeerBridge extends EventTarget {
   // — Retry: tear down failed attempt, rejoin same session —
 
   retry() {
+    if (this.#connection?.open) return;
     const sessionId = this.#sessionId;
     const role = this.#role;
     if (!sessionId || !role) return;
@@ -217,6 +218,9 @@ export class PeerBridge extends EventTarget {
       this.#log('connection: CLOSED');
       this.#stopHeartbeat();
       this.#releaseWakeLock();
+      // Only emit if we didn't initiate — disconnect() nulls #connection before closing
+      if (!this.#connection) return;
+      this.#connection = null;
       const reason = this.#pendingReason || undefined;
       this.#pendingReason = null;
       this.#emit('disconnected', { role: this.#role, reason });

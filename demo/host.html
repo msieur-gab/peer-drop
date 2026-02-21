@@ -200,6 +200,7 @@
   const welcome = document.getElementById('welcome');
 
   const clientBase = new URL('client.html', location.href).href;
+  let retryTimer = null;
 
   log('Creating host session...');
   const { sessionId } = bridge.host();
@@ -217,6 +218,7 @@
 
   bridge.addEventListener('connected', () => {
     log('Peer connected!', 'ok');
+    if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; }
     status.textContent = 'Connected — waiting for data...';
     status.className = 'status connected';
   });
@@ -238,11 +240,12 @@
   bridge.addEventListener('disconnected', (e) => {
     const reason = e.detail?.reason;
     log(`Disconnected: ${reason || 'closed'}`, 'warn');
+    welcome.classList.remove('visible');
+    qrPhase.classList.remove('hidden');
     status.textContent = reason || 'Disconnected';
     status.className = 'status';
-    setTimeout(() => {
-      welcome.classList.remove('visible');
-      qrPhase.classList.remove('hidden');
+    retryTimer = setTimeout(() => {
+      retryTimer = null;
       status.textContent = 'Scan QR code from phone to connect';
       bridge.retry();
     }, 3000);
@@ -256,12 +259,14 @@
 
   document.getElementById('btn-disconnect').addEventListener('click', () => {
     log('Disconnect button pressed');
+    if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; }
     bridge.disconnect('Host ended session');
     welcome.classList.remove('visible');
     qrPhase.classList.remove('hidden');
     status.textContent = 'Disconnected';
     status.className = 'status';
-    setTimeout(() => {
+    retryTimer = setTimeout(() => {
+      retryTimer = null;
       status.textContent = 'Scan QR code from phone to connect';
       bridge.retry();
     }, 1000);
