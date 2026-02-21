@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Peer Drop — Host</title>
+  <style>
+    * { margin: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, system-ui, sans-serif;
+      min-height: 100dvh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #fafafa;
+      color: #1a1a1a;
+    }
+
+    .host {
+      text-align: center;
+      max-width: 400px;
+      padding: 2rem;
+    }
+
+    h1 {
+      font-size: 1.125rem;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      margin-bottom: 0.25rem;
+    }
+
+    .session-id {
+      font-family: monospace;
+      font-size: 0.8rem;
+      color: #888;
+      margin-bottom: 2rem;
+    }
+
+    peer-qrcode {
+      display: block;
+      margin: 0 auto 2rem;
+    }
+
+    .status {
+      font-size: 0.85rem;
+      color: #888;
+      transition: color 0.3s;
+    }
+
+    .status.connected { color: #2d8a4e; }
+    .status.error { color: #c0392b; }
+
+    /* — Welcome state — */
+
+    .welcome {
+      display: none;
+      animation: fadeIn 0.4s ease;
+    }
+
+    .welcome.visible { display: block; }
+
+    .welcome h2 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+
+    .welcome .name {
+      font-size: 2rem;
+      font-weight: 300;
+      letter-spacing: -0.02em;
+      margin-bottom: 1.5rem;
+    }
+
+    .welcome .meta {
+      font-size: 0.8rem;
+      color: #888;
+    }
+
+    .welcome .payload {
+      margin-top: 1.5rem;
+      padding: 1rem;
+      background: #f0f0f0;
+      border-radius: 8px;
+      font-family: monospace;
+      font-size: 0.75rem;
+      text-align: left;
+      word-break: break-all;
+      white-space: pre-wrap;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .btn-disconnect {
+      margin-top: 1.5rem;
+      padding: 0.625rem 1.5rem;
+      font-size: 0.8rem;
+      font-family: inherit;
+      font-weight: 500;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      background: transparent;
+      color: #888;
+      cursor: pointer;
+      transition: color 0.2s, border-color 0.2s;
+    }
+
+    .btn-disconnect:hover { color: #c0392b; border-color: #c0392b; }
+
+    .qr-phase { transition: opacity 0.3s; }
+    .qr-phase.hidden { opacity: 0; pointer-events: none; position: absolute; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* — Debug log — */
+
+    #debug {
+      display: none;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      max-height: 30vh;
+      overflow-y: auto;
+      background: rgba(0, 0, 0, 0.9);
+      color: #f0f0f0;
+      font-family: monospace;
+      font-size: 0.65rem;
+      line-height: 1.4;
+      padding: 0.5rem;
+      z-index: 1000;
+      border-top: 1px solid #ccc;
+    }
+
+    #debug.visible { display: block; }
+    #debug .log-line { padding: 1px 0; }
+    #debug .log-line.err { color: #e74c3c; }
+    #debug .log-line.ok { color: #2ecc71; }
+    #debug .log-line.warn { color: #f39c12; }
+    #debug .log-line.info { color: #888; }
+  </style>
+</head>
+<body>
+
+<div class="host">
+
+  <!-- QR phase -->
+  <div class="qr-phase" id="qr-phase">
+    <h1>Peer Drop</h1>
+    <div class="session-id" id="session-id">starting...</div>
+    <peer-qrcode id="qr" size="220"></peer-qrcode>
+    <div class="status" id="status">Waiting for connection...</div>
+  </div>
+
+  <!-- Welcome phase -->
+  <div class="welcome" id="welcome">
+    <h2>Welcome back,</h2>
+    <div class="name" id="user-name"></div>
+    <div class="meta" id="user-meta"></div>
+    <div class="payload" id="payload"></div>
+    <button class="btn-disconnect" id="btn-disconnect">Disconnect</button>
+  </div>
+
+</div>
+
+<div id="debug"></div>
+
+<script type="module">
+  import { PeerBridge } from '../peer-bridge.js';
+  import '../peer-qrcode.js';
+
+  const DEBUG = new URLSearchParams(location.search).has('debug');
+  const debugEl = document.getElementById('debug');
+  if (DEBUG) debugEl.classList.add('visible');
+
+  function log(msg, level = 'info') {
+    if (!DEBUG) return;
+    const line = document.createElement('div');
+    line.className = `log-line ${level}`;
+    const ts = new Date().toLocaleTimeString('en', { hour12: false, fractionalSecondDigits: 1 });
+    line.textContent = `${ts} ${msg}`;
+    debugEl.appendChild(line);
+    debugEl.scrollTop = debugEl.scrollHeight;
+  }
+
+  // ——— Setup ———
+
+  const bridge = new PeerBridge({ debug: DEBUG });
+
+  bridge.addEventListener('log', (e) => log(`[bridge] ${e.detail.message}`));
+
+  const qr = document.getElementById('qr');
+  const status = document.getElementById('status');
+  const sessionIdEl = document.getElementById('session-id');
+  const qrPhase = document.getElementById('qr-phase');
+  const welcome = document.getElementById('welcome');
+
+  const clientBase = new URL('client.html', location.href).href;
+
+  log('Creating host session...');
+  const { sessionId } = bridge.host();
+  sessionIdEl.textContent = sessionId;
+  log(`Session ID: ${sessionId}`);
+  log(`Peer ID: peer-drop-${sessionId}`);
+
+  bridge.addEventListener('ready', () => {
+    log('PeerJS signaling server connected', 'ok');
+    const clientUrl = bridge.sessionUrl(clientBase);
+    qr.value = clientUrl;
+    log(`QR URL: ${clientUrl}`);
+    status.textContent = 'Scan QR code from phone to connect';
+  });
+
+  bridge.addEventListener('connected', () => {
+    log('Peer connected!', 'ok');
+    status.textContent = 'Connected — waiting for data...';
+    status.className = 'status connected';
+  });
+
+  bridge.addEventListener('data', (e) => {
+    const profile = e.detail.data;
+    log(`Data received: ${JSON.stringify(profile)}`, 'ok');
+
+    document.getElementById('user-name').textContent = profile.name || 'Anonymous';
+    document.getElementById('user-meta').textContent = profile.connectedAt
+      ? `Connected at ${new Date(profile.connectedAt).toLocaleTimeString()}`
+      : '';
+    document.getElementById('payload').textContent = JSON.stringify(profile, null, 2);
+
+    qrPhase.classList.add('hidden');
+    welcome.classList.add('visible');
+  });
+
+  bridge.addEventListener('disconnected', (e) => {
+    log(`Disconnected: ${e.detail?.reason || 'closed'}`, 'warn');
+    status.textContent = 'Disconnected';
+    status.className = 'status';
+    setTimeout(() => {
+      welcome.classList.remove('visible');
+      qrPhase.classList.remove('hidden');
+      status.textContent = 'Scan QR code from phone to connect';
+      bridge.retry();
+    }, 3000);
+  });
+
+  bridge.addEventListener('error', (e) => {
+    log(`Error: [${e.detail.type}] ${e.detail.message}`, 'err');
+    status.textContent = `Error: ${e.detail.message}`;
+    status.className = 'status error';
+  });
+
+  document.getElementById('btn-disconnect').addEventListener('click', () => {
+    log('Disconnect button pressed');
+    bridge.disconnect();
+    welcome.classList.remove('visible');
+    qrPhase.classList.remove('hidden');
+    status.textContent = 'Disconnected';
+    status.className = 'status';
+    setTimeout(() => {
+      status.textContent = 'Scan QR code from phone to connect';
+      bridge.retry();
+    }, 1000);
+  });
+</script>
+
+</body>
+</html>
