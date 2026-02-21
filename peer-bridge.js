@@ -298,7 +298,7 @@ export class PeerBridge extends EventTarget {
           this.#connection.close();
           this.#connection = null;
         }
-        this.#emit('disconnected', { reason: 'heartbeat-timeout' });
+        this.#emit('disconnected', { role: this.#role, reason: 'heartbeat-timeout' });
       }
     }, heartbeatInterval);
   }
