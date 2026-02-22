@@ -218,8 +218,8 @@ export class PeerBridge extends EventTarget {
       this.#log('connection: CLOSED');
       this.#stopHeartbeat();
       this.#releaseWakeLock();
-      // Only emit if we didn't initiate — disconnect() nulls #connection before closing
-      if (!this.#connection) return;
+      // Skip if we initiated (disconnect nulls #connection) or if a newer connection replaced this one
+      if (this.#connection !== conn) return;
       this.#connection = null;
       const reason = this.#pendingReason || undefined;
       this.#pendingReason = null;
