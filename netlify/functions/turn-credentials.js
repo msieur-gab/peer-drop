@@ -16,6 +16,10 @@ export default async () => {
 
   return new Response(body, {
     status: res.status,
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'Cache-Control': 'no-store',
+      'Access-Control-Allow-Origin': '*',
+    },
   });
 };

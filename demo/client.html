@@ -336,7 +336,7 @@
   try {
     const res = await fetch('/.netlify/functions/turn-credentials');
     if (res.ok) iceServers = await res.json();
-    log(`TURN: fetched ${iceServers?.length} ICE servers`, 'ok');
+    log(`TURN: fetched ${iceServers?.length} ICE servers: ${JSON.stringify(iceServers?.map(s => s.urls))}`, 'ok');
   } catch { log('TURN: fetch failed, STUN only', 'warn'); }
 
   // ——— State ———
