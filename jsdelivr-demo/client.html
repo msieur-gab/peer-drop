@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Peer Drop — Client</title>
+  <!-- <link rel="manifest" href="manifest.json"> -->
+  <!-- <meta name="theme-color" content="#1a1a1a"> -->
+  <!-- <meta name="apple-mobile-web-app-capable" content="yes"> -->
+  <style>
+    * { margin: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, system-ui, sans-serif;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      background: #1a1a1a;
+      color: #f0f0f0;
+    }
+
+    .screen {
+      display: none;
+      flex: 1;
+      flex-direction: column;
+      padding: 2rem 1.5rem;
+    }
+
+    .screen.active {
+      display: flex;
+    }
+
+    h1 {
+      font-size: 1.125rem;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      margin-bottom: 0.25rem;
+    }
+
+    .subtitle {
+      font-size: 0.8rem;
+      color: #888;
+      margin-bottom: 2rem;
+    }
+
+    /* — Profile form — */
+
+    label {
+      font-size: 0.75rem;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #888;
+      margin-bottom: 0.5rem;
+      display: block;
+    }
+
+    input {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      font-size: 1rem;
+      font-family: inherit;
+      border: 1px solid #333;
+      border-radius: 8px;
+      background: #252525;
+      color: #f0f0f0;
+      outline: none;
+      transition: border-color 0.2s;
+      margin-bottom: 1.5rem;
+    }
+
+    input:focus { border-color: #555; }
+
+    button {
+      width: 100%;
+      padding: 0.875rem;
+      font-size: 0.95rem;
+      font-family: inherit;
+      font-weight: 600;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+
+    button:active { opacity: 0.8; }
+
+    .btn-primary {
+      background: #f0f0f0;
+      color: #1a1a1a;
+    }
+
+    .btn-secondary {
+      background: #333;
+      color: #f0f0f0;
+      margin-top: 0.75rem;
+    }
+
+    /* — Scanner — */
+
+    .scanner-wrap {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 2rem 0;
+    }
+
+    peer-scanner {
+      width: 280px;
+      height: 280px;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    /* — Status — */
+
+    .status {
+      text-align: center;
+      font-size: 0.85rem;
+      color: #888;
+      margin-top: auto;
+      padding-bottom: 1rem;
+    }
+
+    .status.success { color: #2d8a4e; }
+    .status.error { color: #c0392b; }
+
+    /* — Welcome back — */
+
+    .welcome-back {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+
+    .welcome-back h2 {
+      font-size: 1.25rem;
+      font-weight: 400;
+      color: #888;
+      margin-bottom: 0.25rem;
+    }
+
+    .welcome-back .name {
+      font-size: 1.75rem;
+      font-weight: 700;
+      margin-bottom: 2rem;
+    }
+
+    /* — Sent confirmation — */
+
+    .sent {
+      text-align: center;
+      padding-top: 4rem;
+    }
+
+    .sent .check {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+    }
+
+    .sent h2 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+
+    .sent p {
+      font-size: 0.85rem;
+      color: #888;
+    }
+
+    /* — Retry — */
+
+    .retry {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+
+    .retry h2 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+
+    .retry p {
+      font-size: 0.85rem;
+      color: #888;
+      margin-bottom: 2rem;
+      line-height: 1.5;
+    }
+
+    /* — Debug log — */
+
+    #debug {
+      display: none;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      max-height: 40vh;
+      overflow-y: auto;
+      background: rgba(0, 0, 0, 0.9);
+      font-family: monospace;
+      font-size: 0.65rem;
+      line-height: 1.4;
+      padding: 0.5rem;
+      z-index: 1000;
+      border-top: 1px solid #333;
+    }
+
+    #debug.visible { display: block; }
+    #debug .log-line { padding: 1px 0; }
+    #debug .log-line.err { color: #e74c3c; }
+    #debug .log-line.ok { color: #2ecc71; }
+    #debug .log-line.warn { color: #f39c12; }
+    #debug .log-line.info { color: #888; }
+  </style>
+</head>
+<body>
+
+  <!-- Screen 1: Profile setup (first visit) -->
+  <div class="screen" id="screen-profile">
+    <h1>Your Profile</h1>
+    <p class="subtitle">This stays on your phone</p>
+
+    <label for="input-name">Name</label>
+    <input type="text" id="input-name" placeholder="What should we call you?" autocomplete="name">
+
+    <button class="btn-primary" id="btn-save">Save & Continue</button>
+  </div>
+
+  <!-- Screen 2: Welcome back (returning user) -->
+  <div class="screen" id="screen-welcome">
+    <div class="welcome-back">
+      <h2>Welcome back,</h2>
+      <div class="name" id="wb-name"></div>
+      <button class="btn-primary" id="btn-connect">Connect</button>
+      <button class="btn-secondary" id="btn-edit">Edit Profile</button>
+    </div>
+  </div>
+
+  <!-- Screen 3: Scanner -->
+  <div class="screen" id="screen-scanner">
+    <h1>Scan QR Code</h1>
+    <p class="subtitle">Point at the code on the screen</p>
+
+    <div class="scanner-wrap">
+      <peer-scanner id="scanner"></peer-scanner>
+    </div>
+
+    <div class="status" id="scan-status">Initializing camera...</div>
+  </div>
+
+  <!-- Screen 4: Retry -->
+  <div class="screen" id="screen-retry">
+    <div class="retry">
+      <h2 id="retry-title">Connection failed</h2>
+      <p id="retry-message">Make sure both devices are on the same WiFi network.</p>
+      <button class="btn-primary" id="btn-retry">Try Again</button>
+      <button class="btn-secondary" id="btn-rescan">Scan New QR Code</button>
+    </div>
+  </div>
+
+  <!-- Screen 5: Sent confirmation -->
+  <div class="screen" id="screen-sent">
+    <div class="sent">
+      <div class="check">&#10003;</div>
+      <h2>Sent!</h2>
+      <p>Your profile was delivered to the host.</p>
+      <button class="btn-secondary" id="btn-disconnect" style="margin-top: 2rem;">Disconnect</button>
+    </div>
+  </div>
+
+  <div id="debug"></div>
+
+<script type="module">
+  import { PeerBridge } from 'https://cdn.jsdelivr.net/gh/msieur-gab/peer-drop@main/index.js';
+
+  const DEBUG = new URLSearchParams(location.search).has('debug');
+  const debugEl = document.getElementById('debug');
+  if (DEBUG) debugEl.classList.add('visible');
+
+  function log(msg, level = 'info') {
+    if (!DEBUG) return;
+    const line = document.createElement('div');
+    line.className = `log-line ${level}`;
+    const ts = new Date().toLocaleTimeString('en', { hour12: false, fractionalSecondDigits: 1 });
+    line.textContent = `${ts} ${msg}`;
+    debugEl.appendChild(line);
+    debugEl.scrollTop = debugEl.scrollHeight;
+  }
+
+  // ——— IndexedDB helpers ———
+
+  function openDB() {
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open('peer-drop-demo', 1);
+      req.onupgradeneeded = () => req.result.createObjectStore('profile');
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async function getProfile() {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('profile', 'readonly');
+      const req = tx.objectStore('profile').get('current');
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async function saveProfile(profile) {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('profile', 'readwrite');
+      tx.objectStore('profile').put(profile, 'current');
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  // ——— State ———
+
+  let sessionId = PeerBridge.sessionFrom(location.href);
+  let profile = null;
+
+  log(`URL: ${location.href}`);
+  log(`Session from URL: ${sessionId || '(none)'}`);
+  log(`Secure context: ${window.isSecureContext}`);
+
+  const bridge = new PeerBridge({ debug: DEBUG, keepAwake: true, connectionTimeout: 10000 });
+
+  bridge.addEventListener('log', (e) => log(`[bridge] ${e.detail.message}`));
+
+  const scanner = document.getElementById('scanner');
+  const retryTitle = document.getElementById('retry-title');
+  const retryMessage = document.getElementById('retry-message');
+  const btnRetry = document.getElementById('btn-retry');
+
+  // ——— Screen management ———
+
+  function show(screenId) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(screenId).classList.add('active');
+    log(`Screen → ${screenId}`);
+  }
+
+  // ——— Bridge events (registered once, never stacked) ———
+
+  bridge.addEventListener('ready', (e) => {
+    log(`Peer ready, local ID: ${e.detail?.peerId || '(anon)'}`, 'ok');
+  });
+
+  bridge.addEventListener('connected', () => {
+    log('Connected to host', 'ok');
+    if (profile) {
+      const payload = { ...profile, connectedAt: Date.now() };
+      const sent = bridge.send(payload);
+      log(`Sent profile: ${sent ? 'yes' : 'FAILED'}`, sent ? 'ok' : 'err');
+      show('screen-sent');
+    }
+  });
+
+  bridge.addEventListener('disconnected', (e) => {
+    const reason = e.detail?.reason;
+    log(`Disconnected: ${reason || 'closed'}`, 'warn');
+    retryTitle.textContent = reason || 'Disconnected';
+    retryMessage.textContent = 'The connection was closed.';
+    btnRetry.disabled = false;
+    show('screen-retry');
+  });
+
+  bridge.addEventListener('error', (e) => {
+    log(`Bridge error: [${e.detail.type}] ${e.detail.message}`, 'err');
+    if (e.detail.type === 'connection-timeout' || e.detail.type === 'peer-unavailable') {
+      retryTitle.textContent = 'Connection failed';
+      retryMessage.textContent = 'Make sure both devices are on the same WiFi network.';
+      btnRetry.disabled = false;
+      show('screen-retry');
+    }
+  });
+
+  // ——— Connect ———
+
+  function connectToHost() {
+    if (!sessionId) { log('connectToHost: no sessionId', 'err'); return; }
+    if (!profile) { log('connectToHost: no profile', 'err'); return; }
+    log(`Joining session: ${sessionId}`);
+    bridge.join(sessionId);
+  }
+
+  // ——— Scanner flow ———
+
+  scanner.addEventListener('scan-start', () => {
+    log('Camera active, scanning', 'ok');
+    const status = document.getElementById('scan-status');
+    status.textContent = 'Scanning... point at QR code';
+    status.className = 'status';
+  });
+
+  scanner.addEventListener('scan-success', (e) => {
+    const raw = e.detail.data;
+    log(`QR scanned: ${raw}`, 'ok');
+
+    sessionId = PeerBridge.sessionFrom(raw);
+    log(`Extracted session: ${sessionId || '(none)'}`, sessionId ? 'ok' : 'err');
+
+    if (sessionId) {
+      connectToHost();
+    } else {
+      document.getElementById('scan-status').textContent = 'No session found in QR code';
+      log('No ?session= param in scanned URL', 'err');
+    }
+  });
+
+  scanner.addEventListener('scan-error', (e) => {
+    log(`Scanner error: ${e.detail.error}`, 'err');
+    const status = document.getElementById('scan-status');
+    status.textContent = e.detail.error;
+    status.className = 'status error';
+  });
+
+  // ——— Button handlers ———
+
+  document.getElementById('btn-save').addEventListener('click', async () => {
+    const name = document.getElementById('input-name').value.trim();
+    if (!name) return;
+
+    profile = { name, createdAt: Date.now() };
+    await saveProfile(profile);
+    log(`Profile saved: ${name}`, 'ok');
+
+    if (sessionId) {
+      connectToHost();
+    } else {
+      show('screen-scanner');
+      scanner.start();
+    }
+  });
+
+  document.getElementById('btn-connect').addEventListener('click', () => {
+    log('Connect button pressed');
+    if (sessionId) {
+      connectToHost();
+    } else {
+      show('screen-scanner');
+      scanner.start();
+    }
+  });
+
+  document.getElementById('btn-retry').addEventListener('click', () => {
+    log('Retry button pressed');
+    retryTitle.textContent = 'Connecting...';
+    retryMessage.textContent = 'Attempting to reach host...';
+    btnRetry.disabled = true;
+    bridge.retry();
+  });
+
+  document.getElementById('btn-rescan').addEventListener('click', () => {
+    log('Rescan button pressed');
+    bridge.disconnect();
+    sessionId = null;
+    show('screen-scanner');
+    scanner.start();
+  });
+
+  document.getElementById('btn-disconnect').addEventListener('click', () => {
+    log('Disconnect button pressed');
+    bridge.disconnect('Client disconnected');
+    show('screen-welcome');
+  });
+
+  document.getElementById('btn-edit').addEventListener('click', () => {
+    document.getElementById('input-name').value = profile?.name || '';
+    show('screen-profile');
+  });
+
+  // ——— Service worker ———
+
+  // if ('serviceWorker' in navigator) {
+  //   navigator.serviceWorker.register('sw.js').catch(() => {});
+  // }
+
+  // ——— Init ———
+
+  (async () => {
+    try {
+      profile = await getProfile();
+      log(`Profile loaded: ${profile ? profile.name : '(none)'}`);
+    } catch (err) {
+      log(`IndexedDB error: ${err.message}`, 'err');
+    }
+
+    if (profile) {
+      document.getElementById('wb-name').textContent = profile.name;
+      show('screen-welcome');
+    } else {
+      show('screen-profile');
+    }
+  })();
+</script>
+
+</body>
+</html>
