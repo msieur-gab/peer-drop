@@ -249,6 +249,7 @@
 
   bridge.addEventListener('connected', () => {
     log('Peer connected!', 'ok');
+    showToast('Successfully connected');
     if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; }
     status.textContent = 'Connected — waiting for data...';
     status.className = 'status connected';
@@ -271,7 +272,7 @@
   bridge.addEventListener('disconnected', (e) => {
     const reason = e.detail?.reason;
     log(`Disconnected: ${reason || 'closed'}`, 'warn');
-    showToast(reason || 'Disconnected');
+    showToast(reason || 'Connection lost');
     welcome.classList.remove('visible');
     qrPhase.classList.remove('hidden');
     status.textContent = reason || 'Disconnected';
@@ -293,6 +294,7 @@
     log('Disconnect button pressed');
     if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; }
     bridge.disconnect('Host ended session');
+    showToast('Successfully disconnected');
     welcome.classList.remove('visible');
     qrPhase.classList.remove('hidden');
     status.textContent = 'Disconnected';

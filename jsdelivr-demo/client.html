@@ -395,6 +395,7 @@
 
   bridge.addEventListener('connected', () => {
     log('Connected to host', 'ok');
+    showToast('Successfully connected');
     if (profile) {
       const payload = { ...profile, connectedAt: Date.now() };
       const sent = bridge.send(payload);
@@ -406,7 +407,7 @@
   bridge.addEventListener('disconnected', (e) => {
     const reason = e.detail?.reason;
     log(`Disconnected: ${reason || 'closed'}`, 'warn');
-    showToast(reason || 'Disconnected');
+    showToast(reason || 'Connection lost');
     retryTitle.textContent = reason || 'Disconnected';
     retryMessage.textContent = 'The connection was closed.';
     btnRetry.disabled = false;
@@ -510,6 +511,7 @@
   document.getElementById('btn-disconnect').addEventListener('click', () => {
     log('Disconnect button pressed');
     bridge.disconnect('Client disconnected');
+    showToast('Successfully disconnected');
     show('screen-welcome');
   });
 
