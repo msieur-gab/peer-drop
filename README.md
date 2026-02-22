@@ -2,7 +2,9 @@
 
 > QR-authenticated P2P data transfer. Three files. Drop into any project.
 
-A tiny vanilla JS library for peer-to-peer data transfer between two devices, authenticated via QR code. One device creates a session, the other scans to connect, data flows. No server, no accounts, no persistence.
+A thin abstraction over [PeerJS](https://peerjs.com/) (WebRTC) that handles the plumbing of connecting two devices via QR code. One device creates a session, the other scans to connect, data flows. No server, no accounts, no persistence.
+
+Connections are 1:1 (one host, one sender) and bidirectional — both sides can send and receive data once connected.
 
 ## Quick Start
 
@@ -77,6 +79,43 @@ scanner.addEventListener('scan-success', (e) => {
 });
 ```
 
+### Disconnect with reason
+
+Pass a reason string to `disconnect()` — it's delivered to the remote peer before closing.
+
+```javascript
+// Sender side
+bridge.disconnect('User logged out');
+
+// Host side — receives the reason
+bridge.addEventListener('disconnected', (e) => {
+  console.log(e.detail.reason); // 'User logged out'
+});
+```
+
+If the connection drops unexpectedly (network loss, heartbeat timeout), `reason` will reflect the cause (e.g. `'heartbeat-timeout'`).
+
+### URL helpers
+
+```javascript
+// Generate a session URL from any base URL
+const link = bridge.sessionUrl('https://example.com/client.html');
+// → 'https://example.com/client.html?session=PD-A3F7K2'
+
+// Extract session ID from a URL
+const id = PeerBridge.sessionFrom('https://example.com/client.html?session=PD-A3F7K2');
+// → 'PD-A3F7K2'
+```
+
+### Debug mode
+
+Add `?debug` to the page URL. The bridge emits `log` events you can display:
+
+```javascript
+const bridge = new PeerBridge({ debug: true });
+bridge.addEventListener('log', (e) => console.log(e.detail.message));
+```
+
 ## Connection Flow
 
 ```
@@ -102,27 +141,41 @@ HOST                                 SENDER
 |--------|-------------|
 | `host(sessionId?)` | Create a session. Returns `{ sessionId }` |
 | `join(sessionId)` | Connect to an existing session |
-| `send(data)` | Send data to the connected peer |
-| `disconnect(reason?)` | Close connection, keep session for retry |
-| `destroy()` | Full teardown |
-| `retry()` | Re-attempt a failed connection |
+| `send(data)` | Send data to the connected peer. Works from both sides |
+| `disconnect(reason?)` | Close connection, deliver reason to remote peer |
+| `destroy()` | Full teardown — connection + session gone |
+| `retry()` | Re-attempt a failed connection on the same session |
+| `sessionUrl(baseUrl)` | Build a URL with the session ID as query param |
+| `PeerBridge.sessionFrom(url)` | Static — extract session ID from a URL |
+
+| Property | Description |
+|----------|-------------|
+| `sessionId` | Current session ID |
+| `connected` | `true` if the data channel is open |
 
 | Event | Detail |
 |-------|--------|
 | `ready` | `{ peerId, sessionId }` — signaling server connected |
 | `connected` | `{ role }` — peer-to-peer link established |
-| `disconnected` | `{ role, reason? }` — connection lost |
+| `disconnected` | `{ role, reason? }` — connection closed or lost |
 | `data` | `{ data }` — incoming data from peer |
 | `error` | `{ type, message }` — something went wrong |
+| `log` | `{ message }` — debug info (only when `debug: true`) |
 
 | Option | Default | Description |
 |--------|---------|-------------|
 | `debug` | `false` | Enable debug logging via `log` events |
-| `keepAwake` | `false` | Request wake lock while connected |
+| `keepAwake` | `false` | Request screen wake lock while connected |
 | `connectionTimeout` | `null` | Timeout in ms before giving up |
-| `heartbeatInterval` | `5000` | Ping interval in ms |
-| `heartbeatTimeout` | `15000` | Max silence before disconnect |
-| `prefix` | `'peer-drop'` | Peer ID prefix |
+| `heartbeatInterval` | `5000` | Ping interval in ms (host → sender) |
+| `heartbeatTimeout` | `15000` | Max silence before auto-disconnect |
+| `prefix` | `'peer-drop'` | Peer ID prefix on the signaling server |
+
+## How it works
+
+Peer Drop is a thin wrapper around [PeerJS](https://peerjs.com/), which itself abstracts WebRTC. The signaling (how peers find each other) goes through PeerJS's free cloud server. Once connected, data flows directly between devices — no server relay needed for most network configurations.
+
+PeerJS includes built-in STUN and TURN servers for NAT traversal, so connections work across different networks (e.g. desktop on WiFi, phone on cellular).
 
 ## Dependencies
 
@@ -130,7 +183,7 @@ All loaded via CDN — no npm install needed.
 
 | Library | Purpose |
 |---------|---------|
-| [PeerJS](https://peerjs.com/) | WebRTC abstraction |
+| [PeerJS](https://peerjs.com/) | WebRTC abstraction + signaling |
 | [qrcode](https://github.com/soldair/node-qrcode) | QR code generation |
 | [jsQR](https://github.com/cozmo/jsQR) | QR code scanning |
 
