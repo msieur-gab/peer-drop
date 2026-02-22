@@ -197,6 +197,30 @@
       line-height: 1.5;
     }
 
+    /* — Toast — */
+
+    .toast {
+      position: fixed;
+      top: 1.5rem;
+      left: 50%;
+      transform: translateX(-50%) translateY(-120%);
+      background: #f0f0f0;
+      color: #1a1a1a;
+      font-size: 0.85rem;
+      padding: 0.75rem 1.25rem;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      opacity: 0;
+      transition: transform 0.3s ease, opacity 0.3s ease;
+      z-index: 900;
+      pointer-events: none;
+    }
+
+    .toast.visible {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+
     /* — Debug log — */
 
     #debug {
@@ -279,10 +303,18 @@
     </div>
   </div>
 
+  <div class="toast" id="toast"></div>
   <div id="debug"></div>
 
 <script type="module">
   import { PeerBridge } from 'https://cdn.jsdelivr.net/gh/msieur-gab/peer-drop@main/index.js';
+
+  function showToast(msg, duration = 3000) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.classList.add('visible');
+    setTimeout(() => el.classList.remove('visible'), duration);
+  }
 
   const DEBUG = new URLSearchParams(location.search).has('debug');
   const debugEl = document.getElementById('debug');
@@ -374,6 +406,7 @@
   bridge.addEventListener('disconnected', (e) => {
     const reason = e.detail?.reason;
     log(`Disconnected: ${reason || 'closed'}`, 'warn');
+    showToast(reason || 'Disconnected');
     retryTitle.textContent = reason || 'Disconnected';
     retryMessage.textContent = 'The connection was closed.';
     btnRetry.disabled = false;
