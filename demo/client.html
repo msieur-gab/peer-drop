@@ -330,11 +330,11 @@
     });
   }
 
-  // ——— TURN fallback (demo only — key should be proxied in production) ———
+  // ——— TURN fallback ———
 
   let iceServers = null;
   try {
-    const res = await fetch('https://cozy-cajeta-4b14b9.metered.live/api/v1/turn/credentials?apiKey=ec829e2978b0e97b9d8cce46c73d3001e223');
+    const res = await fetch('/.netlify/functions/turn-credentials');
     if (res.ok) iceServers = await res.json();
     log(`TURN: fetched ${iceServers?.length} ICE servers`, 'ok');
   } catch { log('TURN: fetch failed, STUN only', 'warn'); }
