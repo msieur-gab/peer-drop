@@ -12,8 +12,9 @@ export default async () => {
   const res = await fetch(
     `https://${app}.metered.live/api/v1/turn/credentials?apiKey=${key}`
   );
+  const body = await res.text();
 
-  return new Response(res.body, {
+  return new Response(body, {
     status: res.status,
     headers: { 'Content-Type': 'application/json' },
   });
