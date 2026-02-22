@@ -68,8 +68,10 @@ export class PeerBridge extends EventTarget {
     this.#sessionId = sessionId || generateSessionId();
     const peerId = `${this.#options.prefix}-${this.#sessionId}`;
 
+    const peerOpts = { debug: this.#debug ? 2 : 0 };
+    if (this.#options.iceServers) peerOpts.config = { iceServers: this.#options.iceServers };
     this.#log(`host: creating peer ${peerId}`);
-    this.#peer = new Peer(peerId, { debug: this.#debug ? 2 : 0 });
+    this.#peer = new Peer(peerId, peerOpts);
 
     this.#peer.on('open', (id) => {
       this.#log(`host: signaling open, id=${id}`);
@@ -98,8 +100,10 @@ export class PeerBridge extends EventTarget {
     this.#sessionId = sessionId;
     const hostPeerId = `${this.#options.prefix}-${sessionId}`;
 
+    const peerOpts = { debug: this.#debug ? 2 : 0 };
+    if (this.#options.iceServers) peerOpts.config = { iceServers: this.#options.iceServers };
     this.#log(`join: connecting to host ${hostPeerId}`);
-    this.#peer = new Peer(undefined, { debug: this.#debug ? 2 : 0 });
+    this.#peer = new Peer(undefined, peerOpts);
 
     this.#peer.on('open', (id) => {
       this.#log(`join: signaling open, id=${id}`);

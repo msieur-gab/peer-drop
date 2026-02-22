@@ -187,9 +187,18 @@
     debugEl.scrollTop = debugEl.scrollHeight;
   }
 
+  // ——— TURN fallback (demo only — key should be proxied in production) ———
+
+  let iceServers = null;
+  try {
+    const res = await fetch('https://cozy-cajeta-4b14b9.metered.live/api/v1/turn/credentials?apiKey=ec829e2978b0e97b9d8cce46c73d3001e223');
+    if (res.ok) iceServers = await res.json();
+    log(`TURN: fetched ${iceServers?.length} ICE servers`, 'ok');
+  } catch { log('TURN: fetch failed, STUN only', 'warn'); }
+
   // ——— Setup ———
 
-  const bridge = new PeerBridge({ debug: DEBUG });
+  const bridge = new PeerBridge({ debug: DEBUG, iceServers });
 
   bridge.addEventListener('log', (e) => log(`[bridge] ${e.detail.message}`));
 
